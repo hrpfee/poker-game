@@ -1,0 +1,36 @@
+plugins {
+    id 'java'
+    id 'application'
+}
+
+group   = 'mock'
+version = '1.0.0'
+
+application {
+    mainClass = 'mock.MockPokerServer'
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    // WebSocket サーバー（クライアントと同じライブラリ）
+    implementation 'org.java-websocket:Java-WebSocket:1.5.4'
+
+    // JSON シリアライズ
+    implementation 'com.fasterxml.jackson.core:jackson-databind:2.16.1'
+}
+
+// 依存JARをまとめた実行可能JARを生成するタスク
+jar {
+    manifest {
+        attributes 'Main-Class': 'mock.MockPokerServer'
+    }
+    from {
+        configurations.runtimeClasspath.collect {
+            it.isDirectory() ? it : zipTree(it)
+        }
+    }
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}
