@@ -2,46 +2,45 @@ package poker.view;
 
 import javafx.animation.RotateTransition;
 import javafx.geometry.Pos;
-import javafx.scene.control.Label;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
 import javafx.scene.layout.StackPane;
-import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
 import javafx.util.Duration;
 import poker.model.Card;
 
+import java.io.InputStream;
+
 /**
- * トランプ1枚を表示するJavaFXコンポーネント
- * 表向き / 裏向きの切り替えとフリップアニメーションをサポート
+ * トランプ1枚を表示するJavaFXコンポーネント（画像版）
+ *
+ * =====================================================
+ *  ★ ファイル名の形式をここだけ変更すればOK ★
+ *  toImageFileName() メソッドを編集してください
+ * =====================================================
  */
 public class CardView extends StackPane {
 
-    private static final double CARD_WIDTH = 70;
-    private static final double CARD_HEIGHT = 100;
-    private static final double CORNER_RADIUS = 8;
+    private static final double CARD_WIDTH  = 80;
+    private static final double CARD_HEIGHT = 112;
 
     private Card card;
     private boolean faceDown;
 
-    // カード表面のUI要素
-    private final Rectangle background = new Rectangle(CARD_WIDTH, CARD_HEIGHT);
-    private final Label rankTopLabel = new Label();
-    private final Label suitTopLabel = new Label();
-    private final Label rankBottomLabel = new Label();
-    private final Label suitBottomLabel = new Label();
-    private final Label centerSuitLabel = new Label();
-    private final VBox frontContent = new VBox(2);
+    // 表面・裏面のImageView
+    private final ImageView frontImageView = new ImageView();
+    private final ImageView backImageView  = new ImageView();
 
-    // 裏面のUI要素
-    private final Rectangle backBackground = new Rectangle(CARD_WIDTH, CARD_HEIGHT);
-    private final Label backPattern = new Label("🂠");
+    // 画像が見つからない場合のフォールバック用Rectangle
+    private final Rectangle emptyRect = new Rectangle(CARD_WIDTH, CARD_HEIGHT);
 
     public CardView() {
         this(null, true);
     }
 
     public CardView(Card card, boolean faceDown) {
-        this.card = card;
+        this.card     = card;
         this.faceDown = faceDown;
         setPrefSize(CARD_WIDTH, CARD_HEIGHT);
         setMaxSize(CARD_WIDTH, CARD_HEIGHT);
@@ -49,124 +48,146 @@ public class CardView extends StackPane {
         updateDisplay();
     }
 
-    // ============ UI構築 ============
+    // ============================================================
+    //  ★ ファイル名の変換ルール（ここだけ編集してください） ★
+    // ============================================================
+
+    /**
+     * Cardオブジェクト → 画像ファイル名 の変換メソッド
+     *
+     * 現在の形式: AH.png, KS.png, 10D.png, 2C.png
+     *   （カードコードそのまま。サーバーとの通信コードと同じ形式）
+     *
+     * ---- 他の形式に変更する場合の例 ----
+     *
+     * 「ace_of_hearts.png」形式の場合:
+     *   return rank.toLowerCase() + "_of_" + suit.toLowerCase() + ".png";
+     *   ※ rank は "ACE","KING"... suit は "HEARTS","SPADES"...
+     *
+     * 「1_heart.png」形式の場合:
+     *   return card.getRank().getValue() + "_" + suitName + ".png";
+     *
+     * 「hearts_A.png」形式の場合:
+     *   return suitName + "_" + card.getRank().getDisplay() + ".png";
+     */
+    private String toImageFileName(Card c) {
+        // ===== ここのreturn文を自分のファイル名形式に合わせて変更 =====
+        String rank = c.getRank().getDisplay(); // "A","K","Q","J","10","9"..."2"
+        String suit = switch (c.getSuit()) {
+            case HEARTS   -> "H";
+            case SPADES   -> "S";
+            case DIAMONDS -> "D";
+            case CLUBS    -> "C";
+        };
+        return rank + suit + ".png";  // 例: AH.png, KS.png, 10D.png
+    }
+
+    /** 裏面の画像ファイル名 */
+    private String backImageFileName() {
+        return "back.png";  // 裏面画像のファイル名（必要に応じて変更）
+    }
+
+    // ============================================================
 
     private void buildCard() {
-        // 表面の背景
-        background.setArcWidth(CORNER_RADIUS * 2);
-        background.setArcHeight(CORNER_RADIUS * 2);
-        background.setFill(Color.WHITE);
-        background.setStroke(Color.rgb(180, 180, 180));
-        background.setStrokeWidth(1.5);
-        background.setEffect(new javafx.scene.effect.DropShadow(6, Color.rgb(0, 0, 0, 0.3)));
+        // ImageViewの共通設定
+        frontImageView.setFitWidth(CARD_WIDTH);
+        frontImageView.setFitHeight(CARD_HEIGHT);
+        frontImageView.setPreserveRatio(false);
 
-        // ランク（左上）
-        rankTopLabel.setStyle("-fx-font-size: 16px; -fx-font-weight: bold; -fx-font-family: 'Georgia';");
-        suitTopLabel.setStyle("-fx-font-size: 13px;");
+        backImageView.setFitWidth(CARD_WIDTH);
+        backImageView.setFitHeight(CARD_HEIGHT);
+        backImageView.setPreserveRatio(false);
 
-        // 中央スート
-        centerSuitLabel.setStyle("-fx-font-size: 28px;");
-        centerSuitLabel.setAlignment(Pos.CENTER);
+        // 裏面画像を読み込む
+        Image backImg = loadImage(backImageFileName());
+        if (backImg != null) {
+            backImageView.setImage(backImg);
+        } else {
+            // 裏面画像がない場合は青い矩形で代替
+            Rectangle fallback = new Rectangle(CARD_WIDTH, CARD_HEIGHT);
+            fallback.setArcWidth(12);
+            fallback.setArcHeight(12);
+            fallback.setFill(Color.rgb(30, 80, 160));
+            getChildren().add(fallback);
+        }
 
-        // ランク（右下・逆さ）
-        rankBottomLabel.setStyle("-fx-font-size: 16px; -fx-font-weight: bold; -fx-font-family: 'Georgia'; -fx-rotate: 180;");
-        suitBottomLabel.setStyle("-fx-font-size: 13px; -fx-rotate: 180;");
+        // プレースホルダー（空のカード枠）
+        emptyRect.setArcWidth(12);
+        emptyRect.setArcHeight(12);
+        emptyRect.setFill(Color.rgb(255, 255, 255, 0.08));
+        emptyRect.setStroke(Color.rgb(255, 255, 255, 0.3));
+        emptyRect.getStrokeDashArray().addAll(4.0, 4.0);
+        emptyRect.setVisible(false);
 
-        // 左上のコーナー情報
-        VBox topLeft = new VBox(0, rankTopLabel, suitTopLabel);
-        topLeft.setAlignment(Pos.TOP_LEFT);
-        topLeft.setTranslateX(-CARD_WIDTH / 2 + 40);
-        topLeft.setTranslateY(-CARD_HEIGHT / 2 + 50);
-
-        // 中央
-        centerSuitLabel.setTranslateX(0);
-        centerSuitLabel.setTranslateY(0);
-
-        // 右下のコーナー情報
-        VBox bottomRight_label = new VBox(0, rankBottomLabel);
-        bottomRight_label.setAlignment(Pos.BOTTOM_RIGHT);
-        bottomRight_label.setTranslateX(CARD_WIDTH / 2 - 40);
-        bottomRight_label.setTranslateY(CARD_HEIGHT / 2 - 50);
-        VBox bottomRight_suit = new VBox(0, suitBottomLabel);
-        bottomRight_suit.setAlignment(Pos.BOTTOM_RIGHT);
-        bottomRight_suit.setTranslateX(CARD_WIDTH / 2 - 40);
-        bottomRight_suit.setTranslateY(CARD_HEIGHT / 2 - 70);
-
-
-        // 裏面
-        backBackground.setArcWidth(CORNER_RADIUS * 2);
-        backBackground.setArcHeight(CORNER_RADIUS * 2);
-        backBackground.setFill(Color.rgb(30, 80, 160));
-        backBackground.setStroke(Color.rgb(20, 60, 130));
-        backBackground.setStrokeWidth(1.5);
-        backBackground.setEffect(new javafx.scene.effect.DropShadow(6, Color.rgb(0, 0, 0, 0.3)));
-
-        backPattern.setStyle("-fx-font-size: 50px; -fx-text-fill: rgba(255,255,255,0.15);");
-
-        getChildren().addAll(
-            background,
-            topLeft,
-            centerSuitLabel,
-            bottomRight_label,
-            bottomRight_suit,
-            backBackground,
-            backPattern
-        );
+        getChildren().addAll(emptyRect, backImageView, frontImageView);
+        setAlignment(Pos.CENTER);
     }
 
     private void updateDisplay() {
+        emptyRect.setVisible(false);
+
         if (faceDown || card == null) {
-            // 裏向き表示
-            background.setVisible(false);
-            rankTopLabel.setVisible(false);
-            suitTopLabel.setVisible(false);
-            centerSuitLabel.setVisible(false);
-            rankBottomLabel.setVisible(false);
-            backBackground.setVisible(true);
-            backPattern.setVisible(true);
+            // 裏向き：裏面画像を表示
+            backImageView.setVisible(true);
+            frontImageView.setVisible(false);
         } else {
-            // 表向き表示
-            background.setFill(Color.WHITE);
-            background.setStroke(Color.rgb(180, 180, 180));
-            background.getStrokeDashArray().clear();
-            String colorStyle = card.isRed()
-                ? "-fx-text-fill: #cc2200;"
-                : "-fx-text-fill: #111111;";
-
-            rankTopLabel.setText(card.getRank().getDisplay());
-            rankTopLabel.setStyle(rankTopLabel.getStyle() + colorStyle);
-
-            suitTopLabel.setText(card.getSuit().getSymbol());
-            suitTopLabel.setStyle(suitTopLabel.getStyle() + colorStyle);
-
-            centerSuitLabel.setText(card.getSuit().getSymbol());
-            centerSuitLabel.setStyle(centerSuitLabel.getStyle() + colorStyle);
-
-            rankBottomLabel.setText(card.getRank().getDisplay());
-            rankBottomLabel.setStyle(rankBottomLabel.getStyle() + colorStyle);
-
-            suitBottomLabel.setText(card.getSuit().getSymbol());
-            suitBottomLabel.setStyle(suitBottomLabel.getStyle() + colorStyle);
-
-            background.setVisible(true);
-            rankTopLabel.setVisible(true);
-            suitTopLabel.setVisible(true);
-            centerSuitLabel.setVisible(true);
-            rankBottomLabel.setVisible(true);
-            backBackground.setVisible(false);
-            backPattern.setVisible(false);
+            // 表向き：表面画像を読み込んで表示
+            Image img = loadImage(toImageFileName(card));
+            if (img != null) {
+                frontImageView.setImage(img);
+                frontImageView.setVisible(true);
+                backImageView.setVisible(false);
+            } else {
+                // 画像ファイルが見つからない場合のフォールバック表示
+                System.err.println("[CardView] 画像が見つかりません: " + toImageFileName(card));
+                frontImageView.setVisible(false);
+                backImageView.setVisible(false);
+                showFallbackText(card);
+            }
         }
+    }
+
+    /**
+     * resources/ フォルダ（srcと同階層）から画像を読み込む
+     * クラスパスに resources/ が含まれているので
+     * getResourceAsStream("/ファイル名") で直接取得できる
+     */
+    private Image loadImage(String fileName) {
+        try {
+            // クラスパスのルート（= resources/）から検索
+            InputStream is = getClass().getResourceAsStream("/" + fileName);
+            if (is == null) {
+                System.err.println("[CardView] 画像が見つかりません: resources/" + fileName);
+                return null;
+            }
+            return new Image(is);
+        } catch (Exception e) {
+            System.err.println("[CardView] 画像読み込みエラー: " + fileName + " / " + e.getMessage());
+            return null;
+        }
+    }
+
+    /** 画像がない場合のテキストフォールバック */
+    private void showFallbackText(Card c) {
+        emptyRect.setFill(Color.WHITE);
+        emptyRect.setStroke(Color.rgb(180, 180, 180));
+        emptyRect.getStrokeDashArray().clear();
+        emptyRect.setVisible(true);
+        // テキストラベルを追加（フォールバック用）
+        javafx.scene.control.Label lbl = new javafx.scene.control.Label(c.toString());
+        String color = c.isRed() ? "#cc2200" : "#111111";
+        lbl.setStyle("-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: " + color + ";");
+        if (!getChildren().contains(lbl)) getChildren().add(lbl);
     }
 
     // ============ 公開メソッド ============
 
-    /** カードを設定して表示を更新 */
     public void setCard(Card card) {
         this.card = card;
         updateDisplay();
     }
 
-    /** 表向き / 裏向きを切り替え（アニメーションあり） */
     public void flip(boolean showFace) {
         RotateTransition rt1 = new RotateTransition(Duration.millis(200), this);
         rt1.setAxis(javafx.geometry.Point3D.ZERO.add(0, 1, 0));
@@ -184,20 +205,16 @@ public class CardView extends StackPane {
         rt1.play();
     }
 
-    /** 空のカード（プレースホルダー）として表示 */
     public void showEmpty() {
-        background.setFill(Color.rgb(255, 255, 255, 0.1));
-        background.setStroke(Color.rgb(255, 255, 255, 0.3));
-        background.getStrokeDashArray().addAll(4.0, 4.0);
-        background.setVisible(true);
-        rankTopLabel.setVisible(false);
-        suitTopLabel.setVisible(false);
-        centerSuitLabel.setVisible(false);
-        rankBottomLabel.setVisible(false);
-        backBackground.setVisible(false);
-        backPattern.setVisible(false);
+        emptyRect.setFill(Color.rgb(255, 255, 255, 0.08));
+        emptyRect.setStroke(Color.rgb(255, 255, 255, 0.3));
+        emptyRect.getStrokeDashArray().clear();
+        emptyRect.getStrokeDashArray().addAll(4.0, 4.0);
+        emptyRect.setVisible(true);
+        frontImageView.setVisible(false);
+        backImageView.setVisible(false);
     }
 
-    public Card getCard() { return card; }
-    public boolean isFaceDown() { return faceDown; }
+    public Card getCard()      { return card; }
+    public boolean isFaceDown(){ return faceDown; }
 }
