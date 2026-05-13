@@ -1,0 +1,64 @@
+// ============================================================
+// ポーカークライアント - build.gradle
+// Java 17 + JavaFX 21 + Java-WebSocket + Jackson
+// ============================================================
+
+plugins {
+    id 'java'
+    id 'application'
+    id 'org.openjfx.javafxplugin' version '0.1.0'
+}
+
+group   = 'poker'
+version = '1.0.0'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(17)
+    }
+}
+
+// ============ JavaFX ============
+javafx {
+    version = '21'
+    modules = ['javafx.controls', 'javafx.fxml']
+}
+
+// ============ アプリ起動クラス ============
+application {
+    mainClass = 'poker.PokerApp'
+}
+
+// ============ 依存ライブラリ ============
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    // WebSocket クライアント
+    implementation 'org.java-websocket:Java-WebSocket:1.5.4'
+
+    // JSON シリアライズ（GameMessage の変換用）
+    implementation 'com.fasterxml.jackson.core:jackson-databind:2.16.1'
+
+    // テスト
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.10.0'
+}
+
+// ============ テスト設定 ============
+test {
+    useJUnitPlatform()
+}
+
+// ============ JAR 設定 ============
+jar {
+    manifest {
+        attributes 'Main-Class': 'poker.PokerApp'
+    }
+    from {
+        configurations.runtimeClasspath.collect {
+            it.isDirectory() ? it : zipTree(it)
+        }
+    }
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}
